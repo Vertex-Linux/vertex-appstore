@@ -69,10 +69,16 @@ fn main() {
         format!("-Wl,{out_dir}/libcxx-qt-call-init-crate_vertex_store.a"),
         format!("-Wl,{out_dir}/libcxx-qt-call-init-qml_module_VertexStore.a"),
         "-Wl,--no-whole-archive".to_string(),
-        // 2. Rescan the generated lib so that the cxx_qt_init_* symbols now
-        //    referenced by the call-init objects are resolved.  lld rescans an
-        //    archive each time it appears in the command line.
+        // 2. Rescan the generated libs so that the cxx_qt_init_* symbols now
+        //    referenced by the call-init objects are resolved.  Both lld and gold
+        //    rescan an archive each time it appears in the command line.
+        //    We must rescan our own archive AND the dependency crates' archives:
+        //    cxx-qt and cxx-qt-lib each have their own call-init archives
+        //    (propagated via rustc-link-arg since Rust 1.72) and their own
+        //    generated archives that define cxx_qt_init_crate_cxx_qt{,_lib}.
         format!("-Wl,-lvertex-store-cxxqt-generated"),
+        format!("-Wl,-lcxx-qt-cxxqt-generated"),
+        format!("-Wl,-lcxx-qt-lib-cxxqt-generated"),
     ] {
         println!("cargo:rustc-link-arg-bin=vertex-store={flag}");
     }
