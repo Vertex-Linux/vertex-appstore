@@ -44,7 +44,6 @@ jobs:
         uses: jurplel/install-qt-action@v4
         with:
           version: '6.7.3'
-          modules: 'qtdeclarative'
           cache: true
 
       - name: Install Rust (stable)
