@@ -147,19 +147,14 @@ Item {
                         pkgVersion:   modelData.version
                         pkgSource:    modelData.source
                         pkgInstalled: true
+                        pkgUpdateMode: true
                         pkgIcon:      modelData.icon || ""
 
                         onCardClicked: { if (root.openDetail) root.openDetail(modelData) }
-                        onInstallClicked: (src) => backend.install_package(modelData.app_id || modelData.name, src)
-                        onRemoveClicked: {
+                        onUpdateClicked: {
                             var id  = modelData.app_id || modelData.name
                             var src = modelData.source
-                            var nm  = modelData.name
-                            root.confirmFn(
-                                "Remove " + nm + "?",
-                                "This will uninstall " + nm + " from your system.",
-                                function() { backend.remove_package(id, src) }
-                            )
+                            backend.update_package(id, src)
                         }
                     }
                 }

@@ -11,11 +11,13 @@ Rectangle {
     property string pkgVersion: ""
     property string pkgSource: "flatpak"
     property bool   pkgInstalled: false
+    property bool   pkgUpdateMode: false
     property string pkgIcon: ""
     property string flatpakTarget: "system"   // "system" | "user"
 
     signal installClicked(string effectiveSource)
     signal removeClicked
+    signal updateClicked
     signal cardClicked
 
     height: 82
@@ -197,21 +199,21 @@ Rectangle {
                 }
             }
 
-            // Install / Remove button
+            // Install / Remove / Update button
             Rectangle {
                 width: 86
                 height: 32
                 radius: Theme.radiusSm
-                color: root.pkgInstalled ? "transparent" : Theme.accent
-                border.color: root.pkgInstalled ? Theme.danger : "transparent"
-                border.width: root.pkgInstalled ? 1 : 0
+                color: (root.pkgUpdateMode || !root.pkgInstalled) ? Theme.accent : "transparent"
+                border.color: (!root.pkgUpdateMode && root.pkgInstalled) ? Theme.danger : "transparent"
+                border.width: (!root.pkgUpdateMode && root.pkgInstalled) ? 1 : 0
 
                 Behavior on color { ColorAnimation { duration: 150 } }
 
                 Text {
                     anchors.centerIn: parent
-                    text: root.pkgInstalled ? "Remove" : "Install"
-                    color: root.pkgInstalled ? Theme.danger : "white"
+                    text: root.pkgUpdateMode ? "Update" : (root.pkgInstalled ? "Remove" : "Install")
+                    color: (!root.pkgUpdateMode && root.pkgInstalled) ? Theme.danger : "white"
                     font.pixelSize: Theme.fontSm
                     font.weight: Font.Medium
                 }
@@ -222,13 +224,15 @@ Rectangle {
                     anchors.fill: parent
                     radius: parent.radius
                     color: btnHov.hovered
-                        ? (root.pkgInstalled ? Qt.rgba(0.94, 0.27, 0.27, 0.1) : Qt.rgba(1,1,1,0.1))
+                        ? ((!root.pkgUpdateMode && root.pkgInstalled) ? Qt.rgba(0.94, 0.27, 0.27, 0.1) : Qt.rgba(1,1,1,0.1))
                         : "transparent"
                 }
 
                 TapHandler {
                     onTapped: {
-                        if (root.pkgInstalled) {
+                        if (root.pkgUpdateMode) {
+                            root.updateClicked()
+                        } else if (root.pkgInstalled) {
                             root.removeClicked()
                         } else {
                             var src = root.pkgSource === "flatpak"

@@ -27,7 +27,7 @@ pub enum BackendEvent {
 #[derive(Serialize, Clone)]
 pub struct TaskEntry {
     pub id: u64,
-    pub kind: String,       // "install" | "remove" | "update_all"
+    pub kind: String,       // "install" | "remove" | "update" | "update_all"
     pub pkg_name: String,
     pub pkg_source: String,
     pub status: String,     // "queued" | "running" | "done" | "failed"
@@ -151,6 +151,17 @@ fn execute_task(
             c.args(["pacman", "-R", "--noconfirm", name]);
             c
         }
+        ("update", "flatpak") | ("update", "flatpak-system") | ("update", "flatpak-user") => {
+            let app_id = name.split_once('/').map(|(_, id)| id).unwrap_or(name);
+            let mut c = Command::new("flatpak");
+            c.args(["update", "--noninteractive", "-y", app_id]);
+            c
+        }
+        ("update", "pacman") => {
+            let mut c = Command::new("pkexec");
+            c.args(["pacman", "-S", "--noconfirm", name]);
+            c
+        }
         ("update_all", _) => {
             let mut c = Command::new("flatpak");
             c.args(["update", "-y"]);
@@ -174,6 +185,7 @@ fn execute_task(
                     Ok(match kind {
                         "install" => format!("Installed {}", name),
                         "remove" => format!("Removed {}", name),
+                        "update" => format!("Updated {}", name),
                         _ => "Update complete".into(),
                     })
                 } else {
@@ -253,6 +265,8 @@ mod ffi {
         fn install_package(self: Pin<&mut StoreBackend>, name: &QString, source: &QString);
         #[qinvokable]
         fn remove_package(self: Pin<&mut StoreBackend>, name: &QString, source: &QString);
+        #[qinvokable]
+        fn update_package(self: Pin<&mut StoreBackend>, name: &QString, source: &QString);
         #[qinvokable]
         fn update_all(self: Pin<&mut StoreBackend>);
         #[qinvokable]
@@ -469,6 +483,32 @@ impl ffi::StoreBackend {
         let entry = TaskEntry {
             id,
             kind: "remove".into(),
+            pkg_name: name_str,
+            pkg_source: source_str,
+            status: "queued".into(),
+            progress: 0,
+            message: "Queued".into(),
+        };
+        enqueue_task(
+            self.rust().tasks.clone(),
+            self.rust().tasks_dirty.clone(),
+            self.rust().worker_running.clone(),
+            self.rust().event_queue.clone(),
+            entry,
+        );
+    }
+
+    fn update_package(
+        self: core::pin::Pin<&mut Self>,
+        name: &cxx_qt_lib::QString,
+        source: &cxx_qt_lib::QString,
+    ) {
+        let name_str = name.to_string();
+        let source_str = source.to_string();
+        let id = self.rust().next_task_id.fetch_add(1, Ordering::SeqCst);
+        let entry = TaskEntry {
+            id,
+            kind: "update".into(),
             pkg_name: name_str,
             pkg_source: source_str,
             status: "queued".into(),
